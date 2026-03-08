@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trapping Rain Water — 2-Pointer Visualizer</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #0f172a;
+    --border: #1e293b;
+    --green: #4ade80;
+    --cyan: #22d3ee;
+    --yellow: #facc15;
+    --pink: #f472b6;
+    --indigo: #818cf8;
+    --water: #0ea5e9;
+    --wall: #1e3a5f;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --dimmer: #475569;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 16px 60px;
+    overflow-x: hidden;
+  }
+
+  /* Subtle grid bg */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(74,222,128,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(74,222,128,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap { position: relative; z-index: 1; width: 100%; max-width: 760px; }
+
+  /* Header */
+  .header { text-align: center; margin-bottom: 36px; }
+  .tag {
+    font-size: 10px; letter-spacing: 6px; color: var(--green);
+    text-transform: uppercase; margin-bottom: 10px;
+    display: inline-block;
+    animation: fadeDown 0.5s ease both;
+  }
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(24px, 5vw, 36px);
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--green), var(--cyan));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: fadeDown 0.5s 0.1s ease both;
+  }
+  .subtitle {
+    font-size: 11px; color: var(--muted); margin-top: 8px;
+    animation: fadeDown 0.5s 0.2s ease both;
+  }
+
+  /* Input row */
+  .input-row {
+    display: flex; gap: 8px; justify-content: center;
+    flex-wrap: wrap; margin-bottom: 6px;
+    animation: fadeDown 0.5s 0.3s ease both;
+  }
+  input[type="text"] {
+    background: #1e1e2e; border: 1px solid var(--border);
+    border-radius: 8px; padding: 9px 14px; color: var(--text);
+    font-family: inherit; font-size: 13px; width: 280px; outline: none;
+    transition: border-color 0.2s;
+  }
+  input[type="text"]:focus { border-color: var(--green); }
+  .btn-set {
+    background: #1e3a2f; border: 1px solid var(--green);
+    border-radius: 8px; color: var(--green); padding: 9px 18px;
+    cursor: pointer; font-size: 12px; font-family: inherit;
+    letter-spacing: 2px; transition: background 0.15s;
+  }
+  .btn-set:hover { background: #2a4a3a; }
+  .error { color: #f87171; font-size: 11px; text-align: center; margin-bottom: 8px; min-height: 16px; }
+
+  /* Stats */
+  .stats {
+    display: flex; gap: 12px; justify-content: center;
+    flex-wrap: wrap; margin-bottom: 24px;
+    animation: fadeDown 0.5s 0.4s ease both;
+  }
+  .stat {
+    background: #111827; border-radius: 10px;
+    padding: 10px 16px; text-align: center; min-width: 80px;
+    transition: transform 0.15s;
+  }
+  .stat:hover { transform: translateY(-2px); }
+  .stat-label { font-size: 8px; letter-spacing: 2px; margin-bottom: 6px; }
+  .stat-val { font-size: 22px; font-weight: 700; }
+
+  /* SVG container */
+  .svg-wrap {
+    background: var(--surface); border-radius: 16px; padding: 24px;
+    border: 1px solid var(--border); margin-bottom: 16px;
+    overflow-x: auto; text-align: center;
+    animation: fadeDown 0.5s 0.5s ease both;
+  }
+
+  /* Legend */
+  .legend {
+    display: flex; gap: 16px; margin-top: 14px;
+    justify-content: center; flex-wrap: wrap;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+  .legend-dot { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+
+  /* Action log */
+  .action-log {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 13px 20px; margin-bottom: 16px;
+    text-align: center; font-size: 13px; color: #cbd5e1;
+    transition: color 0.3s;
+    animation: fadeDown 0.5s 0.6s ease both;
+    min-height: 46px; display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .action-log.done { color: var(--green); }
+  .step-label { color: var(--dimmer); font-size: 11px; white-space: nowrap; }
+
+  /* Controls */
+  .controls {
+    display: flex; gap: 8px; align-items: center; justify-content: center;
+    flex-wrap: wrap;
+    animation: fadeDown 0.5s 0.7s ease both;
+  }
+  .btn {
+    border-radius: 8px; padding: 9px 14px; cursor: pointer;
+    font-size: 12px; font-family: inherit; transition: all 0.15s;
+    letter-spacing: 0.5px;
+  }
+  .btn-nav { background: #1e293b; border: 1px solid #33415555; color: #94a3b8; }
+  .btn-nav:hover:not(:disabled) { background: #263548; color: var(--text); }
+  .btn-play { background: #1e3a2f; border: 1px solid #4ade8055; color: var(--green); }
+  .btn-play:hover:not(:disabled) { background: #2a4a3a; }
+  .btn:disabled { background: #111; border-color: var(--border); color: #334155; cursor: not-allowed; }
+
+  .footer { margin-top: 36px; font-size: 10px; color: #1e293b; letter-spacing: 3px; text-transform: uppercase; }
+
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes waterPop {
+    0%   { opacity: 0; transform: scaleY(0.5); }
+    60%  { opacity: 1; transform: scaleY(1.08); }
+    100% { transform: scaleY(1); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div class="tag">LeetCode 42</div>
+    <h1>Trapping Rain Water</h1>
+    <div class="subtitle">2-Pointer Visualizer</div>
+  </div>
+
+  <div class="input-row">
+    <input type="text" id="heightInput" value="0, 1, 0, 2, 1, 0, 1, 3, 2, 1, 2, 1" placeholder="e.g. 0,1,0,2,1,3">
+    <button class="btn-set" onclick="applyInput()">SET</button>
+  </div>
+  <div class="error" id="errMsg"></div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="svg-wrap">
+    <svg id="viz" style="display:block;margin:auto;"></svg>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#fbbf24"></div>Left pointer</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f472b6"></div>Right pointer</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9"></div>Water trapped</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#1e3a5f"></div>Wall</div>
+    </div>
+  </div>
+
+  <div class="action-log" id="actionLog">
+    <span class="step-label" id="stepLabel"></span>
+    <span id="actionText"></span>
+  </div>
+
+  <div class="controls">
+    <button class="btn btn-nav" id="btnReset"  onclick="goTo(0)">⏮ Reset</button>
+    <button class="btn btn-nav" id="btnPrev"   onclick="goTo(stepIdx-1)">← Prev</button>
+    <button class="btn btn-play" id="btnPlay"  onclick="togglePlay()">▶ Play</button>
+    <button class="btn btn-nav" id="btnNext"   onclick="goTo(stepIdx+1)">Next →</button>
+    <button class="btn btn-nav" id="btnEnd"    onclick="goTo(steps.length-1)">End ⏭</button>
+  </div>
+
+  <div class="footer">Step through each pointer move to see why water accumulates</div>
+</div>
+
+<script>
+const CELL = 44;
+let heights = [0,1,0,2,1,0,1,3,2,1,2,1];
+let steps = [];
+let stepIdx = 0;
+let playTimer = null;
+
+function generateSteps(height) {
+  const s = [], n = height.length;
+  let left=0, right=n-1, leftMax=0, rightMax=0, water=0;
+  const waterAt = new Array(n).fill(0);
+  s.push({left,right,leftMax,rightMax,water,waterAt:[...waterAt],action:`Start: left=0, right=${n-1}`,highlight:-1});
+  while (left < right) {
+    if (height[left] < height[right]) {
+      if (height[left] >= leftMax) {
+        leftMax = height[left];
+        s.push({left,right,leftMax,rightMax,water,waterAt:[...waterAt],
+          action:`height[${left}]=${height[left]} ≥ leftMax → new leftMax=${leftMax}`,highlight:left});
+      } else {
+        const add = leftMax - height[left];
+        waterAt[left] = add; water += add;
+        s.push({left,right,leftMax,rightMax,water,waterAt:[...waterAt],
+          action:`height[${left}]=${height[left]} < leftMax=${leftMax} → water +${add} = ${water}`,highlight:left});
+      }
+      left++;
+    } else {
+      if (height[right] >= rightMax) {
+        rightMax = height[right];
+        s.push({left,right,leftMax,rightMax,water,waterAt:[...waterAt],
+          action:`height[${right}]=${height[right]} ≥ rightMax → new rightMax=${rightMax}`,highlight:right});
+      } else {
+        const add = rightMax - height[right];
+        waterAt[right] = add; water += add;
+        s.push({left,right,leftMax,rightMax,water,waterAt:[...waterAt],
+          action:`height[${right}]=${height[right]} < rightMax=${rightMax} → water +${add} = ${water}`,highlight:right});
+      }
+      right--;
+    }
+  }
+  s.push({left,right,leftMax,rightMax,water,waterAt:[...waterAt],
+    action:`✓ Done! Total water = ${water}`,highlight:-1,done:true});
+  return s;
+}
+
+function render() {
+  const st = steps[stepIdx];
+  const n = heights.length;
+  const maxH = Math.max(...heights, 1);
+  const ROWS = maxH + 2;
+  const W = n * CELL + 2, H = ROWS * CELL;
+  const svg = document.getElementById('viz');
+  svg.setAttribute('width', W);
+  svg.setAttribute('height', H);
+  svg.innerHTML = '';
+
+  heights.forEach((h, i) => {
+    const isLeft = i === st.left;
+    const isRight = i === st.right;
+    const isHL = i === st.highlight;
+    const w = st.waterAt[i] || 0;
+    const total = h + w;
+
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+
+    // Water rect
+    if (w > 0) {
+      const r = document.createElementNS('http://www.w3.org/2000/svg','rect');
+      r.setAttribute('x', i*CELL+2);
+      r.setAttribute('y', (ROWS-total)*CELL);
+      r.setAttribute('width', CELL-4);
+      r.setAttribute('height', w*CELL);
+      r.setAttribute('fill', isHL ? '#38bdf8cc' : '#0ea5e988');
+      r.setAttribute('rx', 3);
+      g.appendChild(r);
+    }
+
+    // Bar rect
+    if (h > 0) {
+      const r = document.createElementNS('http://www.w3.org/2000/svg','rect');
+      r.setAttribute('x', i*CELL+2);
+      r.setAttribute('y', (ROWS-h)*CELL);
+      r.setAttribute('width', CELL-4);
+      r.setAttribute('height', h*CELL);
+      r.setAttribute('fill', isLeft ? '#fbbf24' : isRight ? '#f472b6' : isHL ? '#a3e635' : '#1e3a5f');
+      r.setAttribute('rx', 3);
+      g.appendChild(r);
+    }
+
+    // Height label
+    const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('x', i*CELL+CELL/2); t.setAttribute('y', ROWS*CELL-5);
+    t.setAttribute('text-anchor','middle'); t.setAttribute('font-size',11);
+    t.setAttribute('fill', isLeft ? '#fbbf24' : isRight ? '#f472b6' : '#475569');
+    t.setAttribute('font-family','JetBrains Mono,monospace');
+    t.textContent = h;
+    g.appendChild(t);
+
+    // Arrow
+    if (isLeft || isRight) {
+      const arrow = document.createElementNS('http://www.w3.org/2000/svg','text');
+      arrow.setAttribute('x', i*CELL+CELL/2);
+      arrow.setAttribute('y', (ROWS-total-0.55)*CELL);
+      arrow.setAttribute('text-anchor','middle'); arrow.setAttribute('font-size',14);
+      arrow.setAttribute('fill', isLeft ? '#fbbf24' : '#f472b6');
+      arrow.textContent = '▼';
+      g.appendChild(arrow);
+
+      const lbl = document.createElementNS('http://www.w3.org/2000/svg','text');
+      lbl.setAttribute('x', i*CELL+CELL/2);
+      lbl.setAttribute('y', (ROWS-total-1.1)*CELL);
+      lbl.setAttribute('text-anchor','middle'); lbl.setAttribute('font-size',9);
+      lbl.setAttribute('fill', isLeft ? '#fbbf2477' : '#f472b677');
+      lbl.setAttribute('font-family','JetBrains Mono,monospace');
+      lbl.textContent = isLeft ? 'L' : 'R';
+      g.appendChild(lbl);
+    }
+
+    svg.appendChild(g);
+  });
+
+  // Stats
+  const statsEl = document.getElementById('stats');
+  const defs = [
+    {label:'LEFT PTR', val:st.left,     color:'#facc15'},
+    {label:'RIGHT PTR',val:st.right,    color:'#f472b6'},
+    {label:'LEFT MAX', val:st.leftMax,  color:'#4ade80'},
+    {label:'RIGHT MAX',val:st.rightMax, color:'#22d3ee'},
+    {label:'WATER',    val:st.water,    color:'#818cf8'},
+  ];
+  statsEl.innerHTML = defs.map(d => `
+    <div class="stat" style="border:1px solid ${d.color}33">
+      <div class="stat-label" style="color:${d.color}99">${d.label}</div>
+      <div class="stat-val" style="color:${d.color}">${d.val}</div>
+    </div>`).join('');
+
+  // Action
+  const log = document.getElementById('actionLog');
+  log.className = 'action-log' + (st.done ? ' done' : '');
+  document.getElementById('stepLabel').textContent = `Step ${stepIdx}/${steps.length-1} →`;
+  document.getElementById('actionText').textContent = st.action;
+
+  // Buttons
+  const isDone = stepIdx === steps.length - 1;
+  document.getElementById('btnReset').disabled = stepIdx === 0;
+  document.getElementById('btnPrev').disabled  = stepIdx === 0;
+  document.getElementById('btnPlay').disabled  = isDone;
+  document.getElementById('btnPlay').textContent = playTimer ? '⏸ Pause' : '▶ Play';
+  document.getElementById('btnNext').disabled  = isDone;
+  document.getElementById('btnEnd').disabled   = isDone;
+}
+
+function goTo(i) {
+  stepIdx = Math.max(0, Math.min(steps.length-1, i));
+  render();
+}
+
+function togglePlay() {
+  if (playTimer) {
+    clearInterval(playTimer); playTimer = null;
+  } else {
+    if (stepIdx >= steps.length-1) return;
+    playTimer = setInterval(() => {
+      if (stepIdx >= steps.length-1) { clearInterval(playTimer); playTimer = null; render(); return; }
+      goTo(stepIdx+1);
+    }, 900);
+  }
+  render();
+}
+
+function applyInput() {
+  const raw = document.getElementById('heightInput').value;
+  const parsed = raw.split(',').map(s => parseInt(s.trim(),10));
+  const err = document.getElementById('errMsg');
+  if (parsed.some(isNaN) || parsed.length < 2) {
+    err.textContent = 'Enter at least 2 comma-separated integers'; return;
+  }
+  if (parsed.some(v => v < 0 || v > 12)) {
+    err.textContent = 'Values must be 0–12'; return;
+  }
+  err.textContent = '';
+  if (playTimer) { clearInterval(playTimer); playTimer = null; }
+  heights = parsed;
+  steps = generateSteps(heights);
+  stepIdx = 0;
+  render();
+}
+
+// Keyboard support
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === 'ArrowRight') goTo(stepIdx+1);
+  if (e.key === 'ArrowLeft')  goTo(stepIdx-1);
+  if (e.key === ' ') { e.preventDefault(); togglePlay(); }
+});
+
+// Init
+steps = generateSteps(heights);
+render();
+</script>
+</body>
+</html>
