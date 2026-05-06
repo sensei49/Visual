@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Maximum Frequency — Sliding Window</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0b0e14;
+    --surface: #131720;
+    --border: #1e2535;
+    --accent: #00e5ff;
+    --accent2: #ff6b35;
+    --accent3: #7fff6b;
+    --text: #e8eaf0;
+    --muted: #5a6070;
+    --window-bg: rgba(0,229,255,0.07);
+    --window-border: rgba(0,229,255,0.4);
+    --left-color: #ff6b35;
+    --right-color: #00e5ff;
+    --best-color: #7fff6b;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 16px 60px;
+    background-image: radial-gradient(ellipse at 20% 10%, rgba(0,229,255,0.05) 0%, transparent 50%),
+                      radial-gradient(ellipse at 80% 90%, rgba(255,107,53,0.05) 0%, transparent 50%);
+  }
+
+  h1 {
+    font-size: clamp(1.4rem, 4vw, 2.2rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-bottom: 4px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 0.85rem;
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 32px;
+    letter-spacing: 0.05em;
+  }
+
+  /* ── Controls ─────────────────────────────── */
+  .controls {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    width: 100%;
+    max-width: 780px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  label {
+    font-size: 0.75rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    display: block;
+    margin-bottom: 6px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  input[type="text"], input[type="number"] {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    padding: 10px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input:focus { border-color: var(--accent); }
+
+  .btn-row {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  button {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.85rem;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 22px;
+    cursor: pointer;
+    transition: transform 0.1s, opacity 0.2s;
+    letter-spacing: 0.04em;
+  }
+  button:active { transform: scale(0.96); }
+
+  #btnStart { background: var(--accent); color: #000; }
+  #btnStep  { background: var(--accent2); color: #fff; }
+  #btnReset { background: var(--border); color: var(--muted); }
+  #btnAuto  { background: #1e2535; color: var(--text); border: 1px solid var(--border); }
+  button:disabled { opacity: 0.35; cursor: default; }
+
+  /* ── Complexity badges ────────────────────── */
+  .complexity {
+    display: flex; gap: 10px; flex-wrap: wrap;
+    max-width: 780px; width: 100%; margin-bottom: 24px;
+  }
+  .badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid;
+  }
+  .badge.time  { border-color: var(--accent);  color: var(--accent);  background: rgba(0,229,255,0.06); }
+  .badge.space { border-color: var(--accent2); color: var(--accent2); background: rgba(255,107,53,0.06); }
+
+  /* ── Array visualiser ─────────────────────── */
+  .viz-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px 24px;
+    width: 100%;
+    max-width: 780px;
+    margin-bottom: 20px;
+  }
+
+  .section-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 14px;
+  }
+
+  #arrayWrap {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    min-height: 68px;
+    align-items: flex-end;
+  }
+
+  .cell {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .cell-box {
+    width: 52px;
+    height: 52px;
+    border-radius: 8px;
+    border: 2px solid var(--border);
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.1rem;
+    font-weight: 700;
+    transition: all 0.35s ease;
+    color: var(--text);
+  }
+
+  .cell-idx {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6rem;
+    color: var(--muted);
+  }
+
+  .cell-label {
+    position: absolute;
+    top: -22px;
+    font-size: 0.65rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+  }
+
+  /* pointer states */
+  .cell.in-window .cell-box {
+    background: var(--window-bg);
+    border-color: var(--window-border);
+    color: var(--accent);
+  }
+  .cell.is-right .cell-box {
+    border-color: var(--right-color);
+    background: rgba(0,229,255,0.12);
+    color: var(--right-color);
+    box-shadow: 0 0 12px rgba(0,229,255,0.3);
+  }
+  .cell.is-left .cell-box {
+    border-color: var(--left-color);
+    background: rgba(255,107,53,0.12);
+    color: var(--left-color);
+    box-shadow: 0 0 12px rgba(255,107,53,0.25);
+  }
+  .cell.best-window .cell-box {
+    border-color: var(--best-color);
+    background: rgba(127,255,107,0.1);
+    color: var(--best-color);
+    box-shadow: 0 0 12px rgba(127,255,107,0.25);
+  }
+
+  /* ── Stats row ──────────────────────────────*/
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 12px;
+    width: 100%;
+    max-width: 780px;
+    margin-bottom: 20px;
+  }
+
+  .stat-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    text-align: center;
+  }
+  .stat-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .stat-val.orange { color: var(--accent2); }
+  .stat-val.green  { color: var(--best-color); }
+  .stat-lbl {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ── Log ────────────────────────────────────*/
+  .log-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px 24px;
+    width: 100%;
+    max-width: 780px;
+  }
+  #log {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--muted);
+    max-height: 180px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  #log .entry { padding: 4px 0; border-bottom: 1px solid var(--border); }
+  #log .entry:last-child { color: var(--text); border-bottom: none; }
+  #log .entry .step-no { color: var(--accent); margin-right: 8px; }
+  #log .entry.win { color: var(--best-color); }
+
+  /* ── Code panel ─────────────────────────────*/
+  .code-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px 24px;
+    width: 100%;
+    max-width: 780px;
+    margin-top: 20px;
+  }
+  pre {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    line-height: 1.7;
+    color: var(--text);
+    white-space: pre;
+    overflow-x: auto;
+  }
+  .kw { color: #ff79c6; }
+  .fn { color: #50fa7b; }
+  .cm { color: #6272a4; }
+  .nu { color: #bd93f9; }
+  .hl { background: rgba(0,229,255,0.12); border-left: 3px solid var(--accent); padding-left: 6px; display: block; }
+  .hl2 { background: rgba(255,107,53,0.1); border-left: 3px solid var(--accent2); padding-left: 6px; display: block; }
+
+  /* speed slider */
+  .speed-row { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+  input[type=range] { accent-color: var(--accent); flex: 1; }
+  .speed-lbl { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--muted); white-space: nowrap; }
+
+  .done-banner {
+    display: none;
+    background: rgba(127,255,107,0.1);
+    border: 1px solid var(--best-color);
+    border-radius: 10px;
+    padding: 14px 20px;
+    font-weight: 700;
+    color: var(--best-color);
+    font-size: 1rem;
+    text-align: center;
+    width: 100%;
+    max-width: 780px;
+    margin-bottom: 12px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Maximum Frequency</h1>
+<p class="subtitle">sliding window · O(n log n) · at most k increments</p>
+
+<div class="complexity">
+  <span class="badge time">Time: O(n log n)</span>
+  <span class="badge space">Space: O(1)</span>
+</div>
+
+<div class="controls">
+  <div>
+    <label>Array (comma-separated)</label>
+    <input type="text" id="arrInput" value="1,2,4,5,5,6,9" />
+  </div>
+  <div>
+    <label>k (max increments)</label>
+    <input type="number" id="kInput" value="4" min="0" />
+  </div>
+  <div class="btn-row">
+    <button id="btnStart">▶ Initialise</button>
+    <button id="btnStep" disabled>Step →</button>
+    <button id="btnAuto" disabled>Auto Play</button>
+    <button id="btnReset" disabled>Reset</button>
+  </div>
+  <div style="grid-column:1/-1">
+    <div class="speed-row">
+      <span class="speed-lbl">Speed</span>
+      <input type="range" id="speedSlider" min="100" max="1800" value="900" step="100"/>
+      <span class="speed-lbl" id="speedVal">1.0×</span>
+    </div>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="stat-box"><div class="stat-val" id="sLeft">—</div><div class="stat-lbl">Left ptr</div></div>
+  <div class="stat-box"><div class="stat-val orange" id="sRight">—</div><div class="stat-lbl">Right ptr</div></div>
+  <div class="stat-box"><div class="stat-val" id="sSum">—</div><div class="stat-lbl">Window sum</div></div>
+  <div class="stat-box"><div class="stat-val orange" id="sCost">—</div><div class="stat-lbl">Cost needed</div></div>
+  <div class="stat-box"><div class="stat-val green" id="sBest">—</div><div class="stat-lbl">Best freq</div></div>
+</div>
+
+<div class="viz-card">
+  <div class="section-label">Sorted array</div>
+  <div id="arrayWrap"></div>
+</div>
+
+<div class="done-banner" id="doneBanner"></div>
+
+<div class="log-card">
+  <div class="section-label">Step log</div>
+  <div id="log"></div>
+</div>
+
+<div class="code-card">
+  <div class="section-label">Algorithm — Python</div>
+  <pre id="codeBlock"><span class="kw">def</span> <span class="fn">maxFrequency</span>(arr, k):
+    arr.<span class="fn">sort</span>()                         <span class="cm"># sort ascending</span>
+    left, window_sum = <span class="nu">0</span>, <span class="nu">0</span>
+    best = <span class="nu">1</span>
+
+    <span class="kw">for</span> right <span class="kw">in</span> <span class="fn">range</span>(<span class="fn">len</span>(arr)):
+        window_sum += arr[right]           <span class="cm"># expand right</span>
+        window_size = right - left + <span class="nu">1</span>
+        cost = arr[right] * window_size - window_sum
+
+        <span class="kw">while</span> cost > k:                   <span class="cm"># shrink if too costly</span>
+            window_sum -= arr[left]
+            left += <span class="nu">1</span>
+            window_size -= <span class="nu">1</span>
+            cost = arr[right] * window_size - window_sum
+
+        best = <span class="fn">max</span>(best, right - left + <span class="nu">1</span>)
+
+    <span class="kw">return</span> best</pre>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────
+let arr = [], k = 0;
+let left = 0, right = -1, windowSum = 0, best = 1, bestLeft = 0, bestRight = 0;
+let steps = [], stepIdx = 0;
+let autoTimer = null;
+
+const $ = id => document.getElementById(id);
+
+// ── Speed slider ───────────────────────────────────────────────
+$('speedSlider').addEventListener('input', function() {
+  const ms = +this.value;
+  const mult = (1800 - ms + 100) / 900;
+  $('speedVal').textContent = mult.toFixed(1) + '×';
+});
+function getDelay() {
+  return +$('speedSlider').value;
+}
+
+// ── Build all steps eagerly ────────────────────────────────────
+function buildSteps(a, K) {
+  const sorted = [...a].sort((x,y)=>x-y);
+  const out = [];
+  let L = 0, wSum = 0, bst = 1, bL = 0, bR = 0;
+
+  for (let R = 0; R < sorted.length; R++) {
+    wSum += sorted[R];
+    let cost = sorted[R] * (R - L + 1) - wSum;
+
+    out.push({ phase:'expand', L, R, wSum, cost, K, bst, bL, bR,
+      msg: `Expand: right → ${R}  |  arr[${R}]=${sorted[R]}  |  windowSum=${wSum}  |  cost=${cost}` });
+
+    while (cost > K) {
+      out.push({ phase:'shrink', L, R, wSum, cost, K, bst, bL, bR,
+        msg: `Shrink: cost ${cost} > k=${K}  →  drop arr[${L}]=${sorted[L]}` });
+      wSum -= sorted[L];
+      L++;
+      cost = sorted[R] * (R - L + 1) - wSum;
+    }
+
+    if (R - L + 1 > bst) { bst = R - L + 1; bL = L; bR = R; }
+
+    out.push({ phase:'check', L, R, wSum, cost, K, bst, bL, bR,
+      msg: `Window [${L}..${R}]  size=${R-L+1}  cost=${cost} ≤ k=${K}  ✓  best=${bst}` });
+  }
+  out.push({ phase:'done', L, R:sorted.length-1, wSum, cost:0, K, bst, bL, bR,
+    msg: `✅ Done! Maximum frequency = ${bst}` });
+  return { sorted, steps: out };
+}
+
+// ── Render array ───────────────────────────────────────────────
+function renderArray(sorted, state) {
+  const wrap = $('arrayWrap');
+  wrap.innerHTML = '';
+  const { L, R, bL, bR, phase } = state;
+
+  sorted.forEach((val, i) => {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+
+    const isL = i === L && phase !== 'done';
+    const isR = i === R && phase !== 'done';
+    const inWin = i >= L && i <= R && phase !== 'done';
+    const inBest = phase === 'done' && i >= bL && i <= bR;
+
+    if (inBest)  cell.classList.add('best-window');
+    else if (isR) cell.classList.add('is-right');
+    else if (isL) cell.classList.add('is-left');
+    else if (inWin) cell.classList.add('in-window');
+
+    // pointer labels
+    const labels = [];
+    if (isL && isR) labels.push({ text: 'L/R', color: 'var(--accent)' });
+    else if (isL)   labels.push({ text: 'L', color: 'var(--left-color)' });
+    else if (isR)   labels.push({ text: 'R', color: 'var(--right-color)' });
+
+    if (labels.length) {
+      const lbl = document.createElement('span');
+      lbl.className = 'cell-label';
+      lbl.textContent = labels.map(l=>l.text).join('/');
+      lbl.style.color = labels[0].color;
+      cell.appendChild(lbl);
+    }
+
+    const box = document.createElement('div');
+    box.className = 'cell-box';
+    box.textContent = val;
+    cell.appendChild(box);
+
+    const idx = document.createElement('div');
+    idx.className = 'cell-idx';
+    idx.textContent = i;
+    cell.appendChild(idx);
+
+    wrap.appendChild(cell);
+  });
+}
+
+// ── Update stat boxes ──────────────────────────────────────────
+function updateStats(state) {
+  $('sLeft').textContent  = state.phase === 'done' ? '—' : state.L;
+  $('sRight').textContent = state.phase === 'done' ? '—' : state.R;
+  $('sSum').textContent   = state.wSum;
+  $('sCost').textContent  = state.cost;
+  $('sBest').textContent  = state.bst;
+}
+
+// ── Log ────────────────────────────────────────────────────────
+function addLog(stepNo, msg, isDone) {
+  const log = $('log');
+  const entry = document.createElement('div');
+  entry.className = 'entry' + (isDone ? ' win' : '');
+  entry.innerHTML = `<span class="step-no">#${String(stepNo).padStart(2,'0')}</span>${msg}`;
+  log.appendChild(entry);
+  log.scrollTop = log.scrollHeight;
+}
+
+// ── Apply one step ─────────────────────────────────────────────
+let sortedArr = [];
+function applyStep() {
+  if (stepIdx >= steps.length) return;
+  const state = steps[stepIdx];
+  renderArray(sortedArr, state);
+  updateStats(state);
+  addLog(stepIdx + 1, state.msg, state.phase === 'done');
+
+  if (state.phase === 'done') {
+    const b = $('doneBanner');
+    b.textContent = `🏆 Answer: ${state.bst}  (window indices ${state.bL}–${state.bR})`;
+    b.style.display = 'block';
+    $('btnStep').disabled = true;
+    $('btnAuto').disabled = true;
+    stopAuto();
+  }
+
+  stepIdx++;
+}
+
+// ── Buttons ────────────────────────────────────────────────────
+$('btnStart').addEventListener('click', () => {
+  const raw = $('arrInput').value.split(',').map(s=>parseInt(s.trim())).filter(n=>!isNaN(n));
+  k = parseInt($('kInput').value) || 0;
+  if (raw.length < 2) { alert('Enter at least 2 numbers'); return; }
+
+  arr = raw;
+  const built = buildSteps(arr, k);
+  sortedArr = built.sorted;
+  steps = built.steps;
+  stepIdx = 0;
+
+  $('btnStep').disabled = false;
+  $('btnAuto').disabled = false;
+  $('btnReset').disabled = false;
+  $('btnStart').disabled = true;
+  $('doneBanner').style.display = 'none';
+  $('log').innerHTML = '';
+  $('sBest').textContent = '1';
+
+  // render initial state (before first step)
+  renderArray(sortedArr, { L:0, R:-1, wSum:0, cost:0, bst:1, bL:0, bR:0, phase:'init' });
+  updateStats({ L:0, R:'-', wSum:0, cost:0, bst:1 });
+});
+
+$('btnStep').addEventListener('click', applyStep);
+
+$('btnReset').addEventListener('click', () => {
+  stopAuto();
+  arr = []; sortedArr = []; steps = []; stepIdx = 0;
+  $('arrayWrap').innerHTML = '';
+  $('log').innerHTML = '';
+  $('doneBanner').style.display = 'none';
+  ['sLeft','sRight','sSum','sCost','sBest'].forEach(id => $(id).textContent = '—');
+  $('btnStart').disabled = false;
+  $('btnStep').disabled = true;
+  $('btnAuto').disabled = true;
+  $('btnReset').disabled = true;
+});
+
+function stopAuto() {
+  if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+  $('btnAuto').textContent = 'Auto Play';
+}
+
+$('btnAuto').addEventListener('click', () => {
+  if (autoTimer) { stopAuto(); return; }
+  $('btnAuto').textContent = '⏸ Pause';
+  autoTimer = setInterval(() => {
+    if (stepIdx >= steps.length) { stopAuto(); return; }
+    applyStep();
+  }, getDelay());
+});
+</script>
+</body>
+</html>
